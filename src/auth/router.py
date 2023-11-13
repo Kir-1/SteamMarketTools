@@ -9,7 +9,7 @@ from src.database import database
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm
 
-from fastapi_cache.decorator import cache
+from src.config import settings
 
 router = APIRouter(tags=["Users"])
 
@@ -40,11 +40,18 @@ async def create_user(
 
 
 @router.post("/token", response_model=TokenView)
-@cache(expire=3600)
 async def auth_for_token(
     user: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(database.get_async_session),
 ):
-    return await controller.auth_user(
+    cache_token = await settings.REDIS.get(f"{user.username}_{user.password}")
+    if cache_token:
+        return TokenView(access_token=cache_token)
+    token = await controller.auth_user(
         session=session, user=UserAuth(email=user.username, password=user.password)
     )
+
+    await settings.REDIS.set(f"{user.username}_{user.password}", token.access_token)
+    await settings.REDIS.expire(f"{user.username}_{user.password}", 3600)
+
+    return token

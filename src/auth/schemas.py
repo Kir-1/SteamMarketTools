@@ -24,10 +24,5 @@ class User(UserAuth):
 
 
 class TokenView(BaseModel):
-    access_token: str
-
-
-class Token(TokenView):
     model_config = ConfigDict(from_attributes=True)
-    time_live: datetime
-    user_id: UUID
+    access_token: str

@@ -11,6 +11,7 @@ services:
       - ./src:/code/src
     depends_on:
       - db
+      - redis
     networks:
       - custom
 
@@ -28,6 +29,18 @@ services:
       - POSTGRES_DB=${DATABASE_NAME}
     networks:
       - custom
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - /path/to/local/dаta:/root/redis
+      - /path/to/local/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_PORT=6379
+      - REDIS_DB=0
 
 networks:
   custom:

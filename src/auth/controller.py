@@ -5,10 +5,11 @@ import jwt
 from sqlalchemy import select
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.auth.models import User, Token
+from src.auth.models import User
 from src.auth.schemas import UserAuth
 from fastapi import HTTPException, status
 from src.config import settings
+from src.auth.schemas import TokenView
 
 
 async def create_user(session: AsyncSession, user: UserAuth) -> User:
@@ -26,7 +27,7 @@ async def create_user(session: AsyncSession, user: UserAuth) -> User:
     return user
 
 
-async def auth_user(session: AsyncSession, user: UserAuth) -> Token:
+async def auth_user(session: AsyncSession, user: UserAuth) -> TokenView:
     user_db: User = await session.scalar(
         select(User).where(User.email == user.email).where(User.is_active == True)
     )
@@ -41,18 +42,6 @@ async def auth_user(session: AsyncSession, user: UserAuth) -> Token:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect password or email",
         )
-
-    token: Token = await session.scalar(
-        select(Token).where(Token.user_id == user_db.id)
-    )
-
-    if token is not None and datetime.utcnow() - token.created_at <= token.time_live:
-        return token
-
-    if token is not None and datetime.utcnow() - token.created_at > token.time_live:
-        await session.delete(token)
-        await session.commit()
-
     encode = {
         "email": user_db.email,
         "id": str(user_db.id),
@@ -61,13 +50,9 @@ async def auth_user(session: AsyncSession, user: UserAuth) -> Token:
     # expires = datetime.utcnow() + timedelta(minutes=60)
     # encode.update({"exp": expires.timestamp()})
 
-    token: Token = Token(
-        user_id=user_db.id,
+    token: TokenView = TokenView(
         access_token=jwt.encode(
             encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-        ),
-        time_live=timedelta(minutes=60),
+        )
     )
-    session.add(token)
-    await session.commit()
     return token
