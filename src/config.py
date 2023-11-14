@@ -12,14 +12,18 @@ class Settings(BaseSettings):
     BASE_DIR: PosixPath = Path(__file__).resolve().parent.parent
     DEBUG: bool
     APP_TITLE: str
-    DATABASE_URL: PostgresDsn
     DATABASE_USER: str
     DATABASE_PASSWORD: str
     DATABASE_NAME: str
-    PORT: int
     SECRET_KEY: str
     ALGORITHM: str
-    REDIS_URL: RedisDsn
+    REDIS_HOST: str
+
+    @property
+    def DATABASE_URL(self):
+        return PostgresDsn(
+            url=f"postgresql+asyncpg://{self.DATABASE_USER}:{self.DATABASE_PASSWORD}@db:5432/{self.DATABASE_NAME}"
+        )
 
     @property
     def PWD_CONTEXT(self):
@@ -31,7 +35,7 @@ class Settings(BaseSettings):
 
     @property
     def REDIS(self):
-        return aioredis.from_url(self.REDIS_URL.unicode_string())
+        return aioredis.StrictRedis(host=self.REDIS_HOST)
 
     model_config = SettingsConfigDict(env_file=f"{BASE_DIR}/.env")
 
